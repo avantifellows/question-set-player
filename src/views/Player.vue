@@ -370,13 +370,15 @@ export default defineComponent({
             calculateScorecardMetrics();
           }
         } else if (newValue != -1 && !state.hasQuizEnded) {
-          if (!state.responses[state.questionOrder[newValue]].visited) {
+          let dynamicIndex = newValue;
+          if (!isOmrMode.value) dynamicIndex = state.questionOrder[newValue];
+          if (!state.responses[dynamicIndex].visited) {
             // if not visited yet
             starttimeSpentOnQuestionCalc(); // for homework and assessment
-            state.responses[state.questionOrder[newValue]].visited = true;
+            state.responses[dynamicIndex].visited = true;
             SessionAPIService.updateSessionAnswer(
               state.sessionId,
-              state.questionOrder[state.currentQuestionIndex],
+              dynamicIndex,
               {
                 visited: true,
               }
@@ -388,7 +390,7 @@ export default defineComponent({
             }
 
             // for homework, run the timer if question is visited but not submitted
-            if (!isQuizAssessment.value && state.responses[state.questionOrder[newValue]].answer == null) {
+            if (!isQuizAssessment.value && state.responses[dynamicIndex].answer == null) {
               starttimeSpentOnQuestionCalc();
             }
           }
