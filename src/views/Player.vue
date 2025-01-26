@@ -331,8 +331,8 @@ export default defineComponent({
 
       state.timerInterval = setInterval(() => {
         if (!isOmrMode.value && state.currentQuestionIndex >= 0 && state.currentQuestionIndex < numQuestions.value && !state.isSessionAnswerRequestProcessing) {
-          state.timeSpentOnQuestion[state.currentQuestionIndex].timeSpent += 1;
-          state.timeSpentOnQuestion[state.currentQuestionIndex].hasSynced = false;
+          state.timeSpentOnQuestion[state.questionOrder[state.currentQuestionIndex]].timeSpent += 1;
+          state.timeSpentOnQuestion[state.questionOrder[state.currentQuestionIndex]].hasSynced = false;
         }
       }, 1000);
     }
@@ -353,7 +353,7 @@ export default defineComponent({
           // but not for homework
           SessionAPIService.updateSessionAnswer(
             state.sessionId,
-            oldValue,
+            state.questionOrder[state.currentQuestionIndex],
             {
               time_spent: state.timeSpentOnQuestion[oldValue].timeSpent
             }
@@ -370,13 +370,13 @@ export default defineComponent({
             calculateScorecardMetrics();
           }
         } else if (newValue != -1 && !state.hasQuizEnded) {
-          if (!state.responses[newValue].visited) {
+          if (!state.responses[state.questionOrder[newValue]].visited) {
             // if not visited yet
             starttimeSpentOnQuestionCalc(); // for homework and assessment
-            state.responses[newValue].visited = true;
+            state.responses[state.questionOrder[newValue]].visited = true;
             SessionAPIService.updateSessionAnswer(
               state.sessionId,
-              state.currentQuestionIndex,
+              state.questionOrder[state.currentQuestionIndex],
               {
                 visited: true,
               }
@@ -388,7 +388,7 @@ export default defineComponent({
             }
 
             // for homework, run the timer if question is visited but not submitted
-            if (!isQuizAssessment.value && state.responses[newValue].answer == null) {
+            if (!isQuizAssessment.value && state.responses[state.questionOrder[newValue]].answer == null) {
               starttimeSpentOnQuestionCalc();
             }
           }
