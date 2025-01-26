@@ -45,7 +45,7 @@
         :isPortrait="isPortrait"
         :imageData="currentQuestion?.image"
         :displaySolution="displaySolution"
-        :draftAnswer="draftResponses[currentQuestionIndex]"
+        :draftAnswer="draftResponses[questionOrder[currentQuestionIndex]]"
         :submittedAnswer="currentQuestionResponseAnswer"
         :isAnswerSubmitted="isAnswerSubmitted"
         :isMarkedForReview="isMarkedForReview"
@@ -65,6 +65,7 @@
         :maxQuestionsAllowedToAttempt="maxQuestionsAllowedToAttempt"
         :quizTimeLimit="quizTimeLimit"
         :numQuestions = "numQuestions"
+        :questionOrder="questionOrder"
         @option-selected="questionOptionSelected"
         @subjective-answer-entered="subjectiveAnswerUpdated"
         @numerical-answer-entered="numericalAnswerUpdated"
@@ -135,6 +136,10 @@ export default defineComponent({
     questions: {
       required: true,
       type: Array as PropType<Question[]>
+    },
+    questionOrder: {
+      required: true,
+      type: Array as PropType<number[]>
     },
     currentQuestionIndex: {
       type: Number,
@@ -227,6 +232,10 @@ export default defineComponent({
       hasEndTestBeenClickedOnce: true
     })
 
+    const shuffledQuestionIndex = computed(() => {
+      return props.questionOrder[state.localCurrentQuestionIndex];
+    });
+
     // display warning when time remaining goes below this threshold (in minutes)
     const timeLimitWarningThreshold: number = 3
 
@@ -292,7 +301,7 @@ To attempt Q.${props.currentQuestionIndex + 1}, unselect an answer to another qu
     function questionOptionSelected(answer: number | string) {
       if (isQuestionTypeSingleChoice.value && typeof answer == "number") {
         // for MCQ, simply set the option as the current response
-        state.draftResponses[props.currentQuestionIndex] = [answer]
+        state.draftResponses[shuffledQuestionIndex.value] = [answer]
         return
       }
 
@@ -301,11 +310,11 @@ To attempt Q.${props.currentQuestionIndex + 1}, unselect an answer to another qu
         // answer: CT
         // updated answer -> [AQ, BR, CS, CT]
         // if answer: CS, updated answer -> [AQ, BR]
-        if (state.draftResponses[props.currentQuestionIndex] == null) {
-          state.draftResponses[props.currentQuestionIndex] = []
+        if (state.draftResponses[shuffledQuestionIndex.value] == null) {
+          state.draftResponses[shuffledQuestionIndex.value] = []
         }
 
-        let currentResponse = clonedeep(state.draftResponses[props.currentQuestionIndex])
+        let currentResponse = clonedeep(state.draftResponses[shuffledQuestionIndex.value])
         if (Array.isArray(currentResponse)) {
           const answerPositionInResponse = currentResponse.indexOf(answer)
           if (answerPositionInResponse != -1) {
@@ -319,36 +328,36 @@ To attempt Q.${props.currentQuestionIndex + 1}, unselect an answer to another qu
             currentResponse.sort()
           }
         }
-        state.draftResponses[props.currentQuestionIndex] = currentResponse
+        state.draftResponses[shuffledQuestionIndex.value] = currentResponse
       }
     }
 
     function submitQuestion() {
       if (!state.localResponses.length) return
-      state.localResponses[props.currentQuestionIndex].answer =
-        state.draftResponses[props.currentQuestionIndex]
-      if (state.draftResponses[props.currentQuestionIndex] != null) {
+      state.localResponses[shuffledQuestionIndex.value].answer =
+        state.draftResponses[shuffledQuestionIndex.value]
+      if (state.draftResponses[shuffledQuestionIndex.value] != null) {
         // question is answered => set review to false
-        state.localResponses[props.currentQuestionIndex].marked_for_review = false;
+        state.localResponses[shuffledQuestionIndex.value].marked_for_review = false;
       }
       context.emit("submit-question")
     }
 
     function clearAnswer() {
       state.reRenderKey = !state.reRenderKey
-      state.draftResponses[props.currentQuestionIndex] = null
+      state.draftResponses[shuffledQuestionIndex.value] = null
       state.isDraftAnswerCleared = true
     }
 
     function markForReviewQuestion() {
-      state.previousLocalResponse = clonedeep(state.localResponses[props.currentQuestionIndex]);
-      state.localResponses[props.currentQuestionIndex].marked_for_review = true;
+      state.previousLocalResponse = clonedeep(state.localResponses[shuffledQuestionIndex.value]);
+      state.localResponses[shuffledQuestionIndex.value].marked_for_review = true;
       let markForReviewInfoText = `Question ${props.currentQuestionIndex + 1} is marked for review.`
-      if (state.localResponses[props.currentQuestionIndex].answer != null) {
+      if (state.localResponses[shuffledQuestionIndex.value].answer != null) {
         markForReviewInfoText += `\nAnswer to Question ${props.currentQuestionIndex + 1} is cleared!`
         clearAnswer()
         submitQuestion()
-      } else if (state.draftResponses[props.currentQuestionIndex] != null) {
+      } else if (state.draftResponses[shuffledQuestionIndex.value] != null) {
         markForReviewInfoText += "\nThis action does not save your answer!"
       }
       state.toast.info(
@@ -400,10 +409,10 @@ To attempt Q.${props.currentQuestionIndex + 1}, unselect an answer to another qu
     function resetState() {
       if (
         (state.isDraftAnswerCleared || isAnswerSubmitted.value) &&
-        state.draftResponses[props.currentQuestionIndex] !=
+        state.draftResponses[shuffledQuestionIndex.value] !=
           currentQuestionResponseAnswer.value
       ) {
-        state.draftResponses[props.currentQuestionIndex] =
+        state.draftResponses[shuffledQuestionIndex.value] =
           currentQuestionResponseAnswer.value
       }
       state.isDraftAnswerCleared = false
@@ -411,12 +420,12 @@ To attempt Q.${props.currentQuestionIndex + 1}, unselect an answer to another qu
     }
 
     function numericalAnswerUpdated(answer: number | null) {
-      state.draftResponses[props.currentQuestionIndex] = answer
+      state.draftResponses[shuffledQuestionIndex.value] = answer
     }
 
     /** update the attempt to the current question - valid for subjective questions */
     function subjectiveAnswerUpdated(answer: string) {
-      state.draftResponses[props.currentQuestionIndex] = answer
+      state.draftResponses[shuffledQuestionIndex.value] = answer
     }
 
     function endTest() {
@@ -466,7 +475,7 @@ For final submission, click the End Test button again.`,
     }))
 
     const currentQuestion = computed(
-      () => props.questions[props.currentQuestionIndex]
+      () => props.questions[shuffledQuestionIndex.value]
     )
 
     const questionType = computed(() => currentQuestion.value.type)
@@ -498,7 +507,7 @@ For final submission, click the End Test button again.`,
     )
 
     const currentQuestionResponse = computed(
-      () => props.responses[props.currentQuestionIndex]
+      () => props.responses[shuffledQuestionIndex.value]
     )
 
     const currentQuestionResponseAnswer = computed(
@@ -530,7 +539,7 @@ For final submission, click the End Test button again.`,
         return false
       }
       const currentDraftResponse = state.draftResponses[
-        props.currentQuestionIndex
+        shuffledQuestionIndex.value
       ] as DraftResponse
       if (currentDraftResponse == null) {
         return false
